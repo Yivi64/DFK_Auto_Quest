@@ -57,19 +57,40 @@ ABI = """
 
 
 class Heroes:
+    """
+    Stores all data about all heroes in both realms in a single wallet address.
+    Mostly for keeping track of things, refreshes on restart or on command to
+    grab updated list of heroes.
+    """
     def __init__(self, user_address: str):
-        ser_heroes = self.get_hero_ids(consts.SERENDALE_RPC, consts.SERENDALE_HERO_CONTRACT_ADDRESS, user_address)
-        cry_heroes = self.get_hero_ids(consts.CRYSTALVALE_RPC, consts.CRYSTALVALE_HERO_CONTRACT_ADDRESS, user_address)
+        self.ser_heroes_ids = self.get_hero_ids(consts.SERENDALE_RPC, consts.SERENDALE_HERO_CONTRACT_ADDRESS, user_address)
+        self.cry_heroes_ids = self.get_hero_ids(consts.CRYSTALVALE_RPC, consts.CRYSTALVALE_HERO_CONTRACT_ADDRESS, user_address)
 
-    def get_hero_ids(self, rpc_address: str, contract_address: str, user_address: str, block_identifier: str = "latest") -> list[int]:
+        self.ser_heroes = [self.get_hero_info(consts.SERENDALE_RPC, consts.SERENDALE_HERO_CONTRACT_ADDRESS, i)
+                           for i in self.ser_heroes_ids]
+        self.cry_heroes = [self.get_hero_info(consts.CRYSTALVALE_RPC, consts.CRYSTALVALE_HERO_CONTRACT_ADDRESS, i)
+                           for i in self.cry_heroes_ids]
+
+    def get_hero_ids(self, rpc_address: str, contract_address: str, user_address: str) -> list[int]:
         w3 = Web3(Web3.HTTPProvider(rpc_address))
 
         contract_address = Web3.to_checksum_address(contract_address)
         contract = w3.eth.contract(contract_address, abi=ABI)
 
-        return contract.functions.getUserHeroes(Web3.to_checksum_address(user_address)).call(block_identifier=block_identifier)
+        return contract.functions.getUserHeroes(Web3.to_checksum_address(user_address)).call(block_identifier="latest")
+
+    def get_hero_info(self, rpc_address: str, contract_address: str, hero_id: int) -> tuple:
+        w3 = Web3(Web3.HTTPProvider(rpc_address))
+
+        contract_address = Web3.to_checksum_address(contract_address)
+        contract = w3.eth.contract(contract_address, abi=ABI)
+
+        return contract.functions.getHero(hero_id).call(block_identifier="latest")
 
 
 class Hero:
-    def __init__(self):
+    """
+    Stores info on one hero just to have it be in an organized manner.
+    """
+    def __init__(self, *args, **kwargs):
         pass
