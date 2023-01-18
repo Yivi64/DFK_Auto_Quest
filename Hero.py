@@ -66,9 +66,9 @@ class Heroes:
         self.ser_heroes_ids = self.get_hero_ids(consts.SERENDALE_RPC, consts.SERENDALE_HERO_CONTRACT_ADDRESS, user_address)
         self.cry_heroes_ids = self.get_hero_ids(consts.CRYSTALVALE_RPC, consts.CRYSTALVALE_HERO_CONTRACT_ADDRESS, user_address)
 
-        self.ser_heroes = [self.get_hero_info(consts.SERENDALE_RPC, consts.SERENDALE_HERO_CONTRACT_ADDRESS, i)
+        self.ser_heroes = [Hero(self.get_hero_info(consts.SERENDALE_RPC, consts.SERENDALE_HERO_CONTRACT_ADDRESS, i))
                            for i in self.ser_heroes_ids]
-        self.cry_heroes = [self.get_hero_info(consts.CRYSTALVALE_RPC, consts.CRYSTALVALE_HERO_CONTRACT_ADDRESS, i)
+        self.cry_heroes = [Hero(self.get_hero_info(consts.CRYSTALVALE_RPC, consts.CRYSTALVALE_HERO_CONTRACT_ADDRESS, i))
                            for i in self.cry_heroes_ids]
 
     def get_hero_ids(self, rpc_address: str, contract_address: str, user_address: str) -> list[int]:
@@ -92,5 +92,11 @@ class Hero:
     """
     Stores info on one hero just to have it be in an organized manner.
     """
-    def __init__(self, *args, **kwargs):
-        pass
+    def __init__(self, raw_data: tuple):
+        self.id = raw_data[0]
+        self.general_info = {"rarity": raw_data[2][2], "generation": raw_data[2][4], "class": raw_data[2][8],
+                             "level": raw_data[3][3], "xp": raw_data[3][4]}
+        self.status = raw_data[3][4]
+        self.stats = {"str": raw_data[4][0], "int": raw_data[4][1], "wis": raw_data[4][2], "lck": raw_data[4][3],
+                      "agi": raw_data[4][4], "vit": raw_data[4][5], "end": raw_data[4][6], "dex": raw_data[4][7]}
+        self.highest_stat = max(self.stats.values())
