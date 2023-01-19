@@ -61,15 +61,25 @@ ABI = """
 
 
 class QuestManager:
+    """
+    To manage teams for quests and creating new quest objects.
+    Handles the quest instances across their lifetime.
+    """
     def __init__(self):
         pass
 
 
 class Quest:
+    """
+    Class to contain all data about one quest with up to 6 heroes.
+    Allows to start the quest, cancel, or complete it.
+    Once a quest is completed this quest instance is destroyed
+    """
     quest_id = 0
 
-    def __init__(self, id_list: list[int], quest_type: str, realm: int, private_key: str, attempts: int = 1):
+    def __init__(self, id_list: list[int], quest_type: str, realm: int, private_key: str, attempts: int = 5):
         assert (0 < len(id_list) <= 6)
+        assert(quest_type in consts.cry_quest_contracts.keys())
         self.id_list = id_list
         self.quest_type = quest_type
 
@@ -83,6 +93,9 @@ class Quest:
         self.quest_address = consts.ser_quest_contracts.get(
             quest_type) if self.realm == "SER" else consts.cry_quest_contracts.get(quest_type)
 
+        self.level = 0 if self.quest_type in ["fishing", "gold", "token", "foraging", "gardening"] else 1
+        Quest.quest_id += 1
+
     def start_quest(self):
         w3 = Web3(Web3.HTTPProvider(self.rpc_address))
 
@@ -95,8 +108,29 @@ class Quest:
 
         nonce = w3.eth.get_transaction_count(account.address, block_identifier="latest")
         tx = contract.functions.startQuest(self.id_list, Web3.to_checksum_address(self.quest_address),
-                                           self.attempts, 1).build_transaction(
-            {'maxFeePerGas': w3.to_wei(26 if self.realm == "SER" else 4, 'gwei'),
+                                           self.attempts, self.level).build_transaction(
+            {'maxFeePerGas': w3.to_wei(26 if self.realm == "SER" else 3.1, 'gwei'),
+             'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'), 'nonce': nonce})
+
+        signed_tx = w3.eth.account.sign_transaction(tx, private_key=self.private_key)
+        w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+
+        tx_receipt = w3.eth.wait_for_transaction_receipt(transaction_hash=signed_tx.hash, timeout=15, poll_latency=2)
+        return tx_receipt
+
+    def complete_quest(self):
+        w3 = Web3(Web3.HTTPProvider(self.rpc_address))
+
+        account = w3.eth.account.from_key(self.private_key)
+        w3.eth.default_account = account.address
+
+        contract = w3.eth.contract(Web3.to_checksum_address(
+            consts.SERENDALE_QUEST_CONTRACT_ADDRESS
+            if self.realm == "SER" else consts.CRYSTALVALE_QUEST_CONTRACT_ADDRESS), abi=ABI)
+
+        nonce = w3.eth.get_transaction_count(account.address, block_identifier="latest")
+        tx = contract.functions.completeQuest(self.id_list[0]).build_transaction(
+            {'maxFeePerGas': w3.to_wei(26 if self.realm == "SER" else 3.1, 'gwei'),
              'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'), 'nonce': nonce})
 
         signed_tx = w3.eth.account.sign_transaction(tx, private_key=self.private_key)
