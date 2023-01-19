@@ -1,5 +1,4 @@
-from web3 import Web3
-import constants as consts
+from requests import post
 
 ABI = """
             [
@@ -62,41 +61,47 @@ class Heroes:
     Mostly for keeping track of things, refreshes on restart or on command to
     grab updated list of heroes.
     """
+
     def __init__(self, user_address: str):
-        self.ser_heroes_ids = self.get_hero_ids(consts.SERENDALE_RPC, consts.SERENDALE_HERO_CONTRACT_ADDRESS, user_address)
-        self.cry_heroes_ids = self.get_hero_ids(consts.CRYSTALVALE_RPC, consts.CRYSTALVALE_HERO_CONTRACT_ADDRESS, user_address)
+        self.query = """
+        query {
+  heroes(where: {owner: "%s"}) {
+    id
+    profession
+    rarity
+    level
+    xp
+    stamina
+    staminaFullAt
+    class
+  	generation
+    strength
+    intelligence
+    wisdom
+    luck
+    agility
+    vitality
+    endurance
+    dexterity
+    network
+  }
+}""" % user_address
+        self.all_heroes: dict = {}
+        self.cry_heroes: list[dict] = []
+        self.ser_heroes: list[dict] = []
+        self.update()
 
-        self.ser_heroes = [Hero(self.get_hero_info(consts.SERENDALE_RPC, consts.SERENDALE_HERO_CONTRACT_ADDRESS, i))
-                           for i in self.ser_heroes_ids]
-        self.cry_heroes = [Hero(self.get_hero_info(consts.CRYSTALVALE_RPC, consts.CRYSTALVALE_HERO_CONTRACT_ADDRESS, i))
-                           for i in self.cry_heroes_ids]
-
-    def get_hero_ids(self, rpc_address: str, contract_address: str, user_address: str) -> list[int]:
-        w3 = Web3(Web3.HTTPProvider(rpc_address))
-
-        contract_address = Web3.to_checksum_address(contract_address)
-        contract = w3.eth.contract(contract_address, abi=ABI)
-
-        return contract.functions.getUserHeroes(Web3.to_checksum_address(user_address)).call(block_identifier="latest")
-
-    def get_hero_info(self, rpc_address: str, contract_address: str, hero_id: int) -> tuple:
-        w3 = Web3(Web3.HTTPProvider(rpc_address))
-
-        contract_address = Web3.to_checksum_address(contract_address)
-        contract = w3.eth.contract(contract_address, abi=ABI)
-
-        return contract.functions.getHero(hero_id).call(block_identifier="latest")
+    def update(self):
+        self.all_heroes = post("https://defi-kingdoms-community-api-gateway-co06z8vi.uc.gateway.dev/graphql",
+                               json={"query": self.query}).json()
+        self.cry_heroes = [Hero(i) for i in self.all_heroes["data"]["heroes"] if i["network"] == "dfk"]
+        self.ser_heroes = [Hero(i) for i in self.all_heroes["data"]["heroes"] if i["network"] == "kla"]
 
 
 class Hero:
     """
     Stores info on one hero just to have it be in an organized manner.
     """
-    def __init__(self, raw_data: tuple):
-        self.id = raw_data[0]
-        self.general_info = {"rarity": raw_data[2][2], "generation": raw_data[2][4], "class": raw_data[2][8],
-                             "level": raw_data[3][3], "xp": raw_data[3][4]}
-        self.status = raw_data[3][4]
-        self.stats = {"str": raw_data[4][0], "int": raw_data[4][1], "wis": raw_data[4][2], "lck": raw_data[4][3],
-                      "agi": raw_data[4][4], "vit": raw_data[4][5], "end": raw_data[4][6], "dex": raw_data[4][7]}
-        self.highest_stat = max(self.stats.values())
+
+    def __init__(self, raw_data: dict):
+        self.hero_data = raw_data
