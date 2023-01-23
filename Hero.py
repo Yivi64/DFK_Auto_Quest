@@ -1,4 +1,5 @@
 from requests import post
+from time import time
 
 ABI = """
             [
@@ -87,8 +88,8 @@ class Heroes:
   }
 }""" % user_address
         self.all_heroes: dict = {}
-        self.cry_heroes: list[dict] = []
-        self.ser_heroes: list[dict] = []
+        self.cry_heroes: list[Hero] = []
+        self.ser_heroes: list[Hero] = []
         self.update()
 
     def update(self):
@@ -105,3 +106,21 @@ class Hero:
 
     def __init__(self, raw_data: dict):
         self.hero_data = raw_data
+        self.id = int(self.hero_data["id"])
+        self.profession = self.hero_data["profession"]
+        self.max_stat = ["", 0]
+        for stat in ("strength", "wisdom", "intelligence", "agility", "endurance", "dexterity", "vitality", "luck"):
+            if self.hero_data[stat] > self.max_stat[1]:
+                self.max_stat = [stat, self.hero_data[stat]]
+
+    def get_stamina(self) -> int:
+        """
+        calculates the hero's current stamina by checking how much time remains till their stamina is full.
+        """
+        max_stam = self.hero_data["stamina"]
+        time_till_full = self.hero_data["staminaFullAt"] - time()
+
+        if time_till_full <= 0:
+            return max_stam
+
+        return int(max_stam - (time_till_full // 1200) - 1)
