@@ -85,6 +85,7 @@ class Heroes:
     endurance
     dexterity
     network
+    currentQuest
   }
 }""" % user_address
         self.all_heroes: dict = {}
@@ -123,4 +124,10 @@ class Hero:
         if time_till_full <= 0:
             return max_stam
 
-        return int(max_stam - (time_till_full // 1200) - 1)
+        return int(max_stam - (time_till_full // 1202 - (self.hero_data["level"] * 2)) - 1)
+
+    def get_quest(self):
+        if self.hero_data["currentQuest"] == "0x0000000000000000000000000000000000000000":
+            return False
+
+        return self.hero_data["currentQuest"]
